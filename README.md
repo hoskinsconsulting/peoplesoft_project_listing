@@ -1,5 +1,5 @@
 # PeopleSoft Project Object Listing
-An Application Engine process to write a csv of objects listed in a project. This include the object type, object name, type, description (if applicable), and action. 
+An Application Engine process to write a csv of objects listed in a project. This includes the object type, object name, type, description (if applicable), and action. 
 
 <table>
     <thead>
