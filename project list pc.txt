@@ -1,0 +1,1364 @@
+Function PeopleCodeDetails(&PCType As number, &PCode1 As string, &PCode2 As string, &PCode3 As string, &PCode4 As string, &PeopleCodeName As string, &PeopleCodeType As string);
+   
+   Local array of string &PC = CreateArrayRept("", 0);
+   Local integer &i;
+   
+   &PC.Push(&PCode1);
+   
+   If All(&PCode2) Then
+      If &PCType = 43 Then /* Application Engine PeopleCode */
+         &PC.Push(RTrim(Left(&PCode2, 8)));
+         &PC.Push(Substring(&PCode2, 9, 3));
+         &PC.Push(RTrim(Substring(&PCode2, 12, 9)));
+         &PC.Push(Right(&PCode2, 10));
+      Else
+         &PC.Push(&PCode2);
+      End-If;
+   End-If;
+   
+   If All(&PCode3) Then
+      &PC.Push(&PCode3);
+   End-If;
+   
+   If All(&PCode4) Then
+      If &PCType = 48 Then /* Component Rec Field PeopleCode */
+         &PC.Push(RTrim(Left(&PCode4, 18)));
+         &PC.Push(RTrim(Substring(&PCode4, 19, 12)));
+      Else
+         &PC.Push(&PCode4);
+      End-If;
+   End-If;
+   
+   If &PCType = 58 Then /* Application Package PeopleCode */
+      &PC.Push("OnExecute");
+   End-If;
+   
+   &PeopleCodeName = "";
+   
+   For &i = 1 To &PC.Len - 1;
+      If &i > 1 Then
+         &PeopleCodeName = &PeopleCodeName | ".";
+      End-If;
+      &PeopleCodeName = &PeopleCodeName | &PC [&i];
+   End-For;
+   
+   &PeopleCodeType = &PC [&PC.Len];
+   
+   If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+      MessageBox(0, "", 49998, &PCType, "Name: " | &PeopleCodeName | " Type: " | &PeopleCodeType | " Len: " | &PC.Len);
+   End-If;
+   
+End-Function;
+
+Function NavigationPath(&PortalName As string, &PortalObject As string) Returns string;
+   Local string &ObjectLabel;
+   Local string &NavUpObject;
+   Local string &ParentObject;
+   Local string &navPath;
+   
+   SQLExec("SELECT PORTAL_LABEL, PORTAL_PRNTOBJNAME FROM PSPRSMDEFN WHERE PORTAL_NAME = :1 AND PORTAL_OBJNAME = :2", &PortalName, &PortalObject, &navPath, &ParentObject);
+   
+   If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+      MessageBox(0, "", 49997, 1, &PortalName | " " | &PortalObject | " " | &navPath | " " | &ParentObject);
+   End-If;
+   
+   While (&ParentObject <> "PORTAL_ROOT_OBJECT")
+      &NavUpObject = &ParentObject;
+      SQLExec("SELECT PORTAL_LABEL, PORTAL_PRNTOBJNAME FROM PSPRSMDEFN WHERE PORTAL_NAME = :1 AND PORTAL_OBJNAME = :2 AND PORTAL_REFTYPE = 'F'", &PortalName, &NavUpObject, &ObjectLabel, &ParentObject);
+      &navPath = &ObjectLabel | " > " | &navPath;
+   End-While;
+   
+   Return &navPath;
+   
+End-Function;
+
+/* Project Object Listing Code Starts Here */
+Local string &ObjectTypeDescription;
+Local integer &ObjectType, &ObjectId1, &ObjectId2, &ObjectId3, &ObjectId4;
+Local string &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4;
+Local integer &UpgradeAction;
+Local string &pObject, &pType, &pDescription, &pUpgradeAction;
+Local string &delim = Char(9);
+Local number &oType;
+Local string &TreeStructure;
+Local string &blankObject = "[ ]";
+Local number &HoldObjectType = 999;
+Local File &pFile = GetFile(HC_PROJLIST_AET.PROJECTNAME | "_PROJECT_OBJECTS.xls", "W", %FilePath_Relative);
+
+SQLExec("SELECT PROJECTNAME, PROJECTDESCR FROM PSPROJECTDEFN WHERE PROJECTNAME = :1", HC_PROJLIST_AET.PROJECTNAME, &pObject, &pDescription);
+
+&pFile.WriteLine("Project");
+&pFile.WriteLine("PEOPLESOFT OBJECT" | &delim | "TYPE" | &delim | "DESCRIPTION" | &delim | "ACTION");
+&pFile.WriteLine(HC_PROJLIST_AET.PROJECTNAME | &delim | " " | &delim | &pDescription | &delim | "Copy");
+
+Local SQL &mSQL = GetSQL("SELECT OBJECTTYPE, OBJECTID1, OBJECTID2, OBJECTID3, OBJECTID4, OBJECTVALUE1, OBJECTVALUE2, OBJECTVALUE3, OBJECTVALUE4, UPGRADEACTION FROM PSPROJECTITEM WHERE PROJECTNAME = :1 AND TAKEACTION = 1 ORDER BY 1,2,3,4,5,6,7,8,9", HC_PROJLIST_AET.PROJECTNAME);
+
+While &mSQL.Fetch(&ObjectType, &ObjectId1, &ObjectId2, &ObjectId3, &ObjectId4, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &UpgradeAction)
+   
+   If &HoldObjectType <> &ObjectType Then
+      
+      Evaluate &ObjectType
+      When 0
+         &ObjectTypeDescription = "Records";
+         Break;
+      When 1
+         &ObjectTypeDescription = "Indexes";
+         Break;
+      When 2
+         &ObjectTypeDescription = "Fields";
+         Break;
+      When 3
+         &ObjectTypeDescription = "Format Definitions";
+         Break;
+      When 4
+         &ObjectTypeDescription = "Translate Values";
+         Break;
+      When 5
+         &ObjectTypeDescription = "Pages";
+         Break;
+      When 6
+         &ObjectTypeDescription = "Menus";
+         Break;
+      When 7
+         &ObjectTypeDescription = "Components";
+         Break;
+      When 8
+         &ObjectTypeDescription = "Record PeopleCode";
+         Break;
+      When 9
+         &ObjectTypeDescription = "Menu PeopleCode";
+         Break;
+      When 10
+         &ObjectTypeDescription = "Queries";
+         Break;
+      When 11
+         &ObjectTypeDescription = "Tree Structures";
+         Break;
+      When 12
+         &ObjectTypeDescription = "Trees";
+         Break;
+      When 13
+         &ObjectTypeDescription = "Access Groups";
+         Break;
+      When 14
+         &ObjectTypeDescription = "Colors";
+         Break;
+      When 15
+         &ObjectTypeDescription = "Styles";
+         Break;
+      When 16
+         &ObjectTypeDescription = "Not Used";
+         Break;
+      When 17
+         &ObjectTypeDescription = "Business Processes";
+         Break;
+      When 18
+         &ObjectTypeDescription = "Activities";
+         Break;
+      When 19
+         &ObjectTypeDescription = "Roles";
+         Break;
+      When 20
+         &ObjectTypeDescription = "Process Definitions";
+         Break;
+      When 21
+         &ObjectTypeDescription = "Process Servers";
+         Break;
+      When 22
+         &ObjectTypeDescription = "Process Types";
+         Break;
+      When 23
+         &ObjectTypeDescription = "Process Jobs";
+         Break;
+      When 24
+         &ObjectTypeDescription = "Process Recurrences";
+         Break;
+      When 25
+         &ObjectTypeDescription = "Message Catalog Entries";
+         Break;
+      When 26
+         &ObjectTypeDescription = "Dimension";
+         Break;
+      When 27
+         &ObjectTypeDescription = "Cube Definitions";
+         Break;
+      When 28
+         &ObjectTypeDescription = "Cube Instance Definitions";
+         Break;
+      When 29
+         &ObjectTypeDescription = "Business Interlinks";
+         Break;
+      When 30
+         &ObjectTypeDescription = "SQL Definitions";
+         Break;
+      When 31
+         &ObjectTypeDescription = "File Layout Definitions";
+         Break;
+      When 32
+         &ObjectTypeDescription = "Component Interfaces";
+         Break;
+      When 33
+         &ObjectTypeDescription = "Application Engine Programs";
+         Break;
+      When 34
+         &ObjectTypeDescription = "Application Engine Sections";
+         Break;
+      When 35
+         &ObjectTypeDescription = "Message Nodes";
+         Break;
+      When 36
+         &ObjectTypeDescription = "Message Channels";
+         Break;
+      When 37
+         &ObjectTypeDescription = "Message Definitions";
+         Break;
+      When 38
+         &ObjectTypeDescription = "Approval Rule Sets";
+         Break;
+      When 39
+         &ObjectTypeDescription = "Message PeopleCode";
+         Break;
+      When 40
+         &ObjectTypeDescription = "Subscription PeopleCode";
+         Break;
+      When 41
+         &ObjectTypeDescription = "Not Used";
+         Break;
+      When 42
+         &ObjectTypeDescription = "Component Interface PeopleCode";
+         Break;
+      When 43
+         &ObjectTypeDescription = "Application Engine PeopleCode";
+         Break;
+      When 44
+         &ObjectTypeDescription = "Page PeopleCode";
+         Break;
+      When 45
+         &ObjectTypeDescription = "Page Field PeopleCode";
+         Break;
+      When 46
+         &ObjectTypeDescription = "Component PeopleCode";
+         Break;
+      When 47
+         &ObjectTypeDescription = "Component Record PeopleCode";
+         Break;
+      When 48
+         &ObjectTypeDescription = "Component Record Field PeopleCode";
+         Break;
+      When 49
+         &ObjectTypeDescription = "Images";
+         Break;
+      When 50
+         &ObjectTypeDescription = "Style Sheets";
+         Break;
+      When 51
+         &ObjectTypeDescription = "HTML";
+         Break;
+      When 52
+         &ObjectTypeDescription = "Not Used";
+         Break;
+      When 53
+         &ObjectTypeDescription = "Permission Lists";
+         Break;
+      When 54
+         &ObjectTypeDescription = "Portal Registry Definitions";
+         Break;
+      When 55
+         &ObjectTypeDescription = "Portal Registry Structures";
+         Break;
+      When 56
+         &ObjectTypeDescription = "URL Definitions";
+         Break;
+      When 57
+         &ObjectTypeDescription = "Application Packages";
+         Break;
+      When 58
+         &ObjectTypeDescription = "Application Package PeopleCode";
+         Break;
+      When 59
+         &ObjectTypeDescription = "Portal Registry User Homepages";
+         Break;
+      When 60
+         &ObjectTypeDescription = "Analytic Types";
+         Break;
+      When 61
+         &ObjectTypeDescription = "Archive Templates";
+         Break;
+      When 62
+         &ObjectTypeDescription = "XSLT";
+         Break;
+      When 63
+         &ObjectTypeDescription = "Portal Registry User Favorites";
+         Break;
+      When 64
+         &ObjectTypeDescription = "Mobile Pages";
+         Break;
+      When 65
+         &ObjectTypeDescription = "Relationships";
+         Break;
+      When 66
+         &ObjectTypeDescription = "Component Interface Property PeopleCode";
+         Break;
+      When 67
+         &ObjectTypeDescription = "Optimization Models";
+         Break;
+      When 68
+         &ObjectTypeDescription = "File References";
+         Break;
+      When 69
+         &ObjectTypeDescription = "File Reference Type Code";
+         Break;
+      When 70
+         &ObjectTypeDescription = "Archive Object Definitions";
+         Break;
+      When 71
+         &ObjectTypeDescription = "Archive Templates (Type 2)";
+         Break;
+      When 72
+         &ObjectTypeDescription = "Diagnostic Plug-Ins";
+         Break;
+      When 73
+         &ObjectTypeDescription = "Analytic Models";
+         Break;
+      When 74
+         &ObjectTypeDescription = "Not Used";
+         Break;
+      When 75
+         &ObjectTypeDescription = "Java Portlet User Preferences";
+         Break;
+      When 76
+         &ObjectTypeDescription = "WSRP Remote Producers";
+         Break;
+      When 77
+         &ObjectTypeDescription = "WSRP Remote Portlets";
+         Break;
+      When 78
+         &ObjectTypeDescription = "WSRP Cloned Portlet Handles";
+         Break;
+      When 79
+         &ObjectTypeDescription = "Services";
+         Break;
+      When 80
+         &ObjectTypeDescription = "Service Operations";
+         Break;
+      When 81
+         &ObjectTypeDescription = "Service Operation Handlers";
+         Break;
+      When 82
+         &ObjectTypeDescription = "Service Operation Version";
+         Break;
+      When 83
+         &ObjectTypeDescription = "Service Operation Routings";
+         Break;
+      When 84
+         &ObjectTypeDescription = "IB Queues";
+         Break;
+      When 85
+         &ObjectTypeDescription = "BIP Template Definitions";
+         Break;
+      When 86
+         &ObjectTypeDescription = "BIP Report Definitions";
+         Break;
+      When 87
+         &ObjectTypeDescription = "BIP File Definitions";
+         Break;
+      When 88
+         &ObjectTypeDescription = "BIP Data Source Definitions";
+         Break;
+      When 89
+         &ObjectTypeDescription = "WSDL";
+         Break;
+      When 90
+         &ObjectTypeDescription = "Message Schemas";
+         Break;
+      When 91
+         &ObjectTypeDescription = "Connected Query Definitions";
+         Break;
+      When 92
+         &ObjectTypeDescription = "Logical Schemas";
+         Break;
+      When 93
+         &ObjectTypeDescription = "XML Schemas";
+         Break;
+      When 94
+         &ObjectTypeDescription = "Relational Schemas";
+         Break;
+      When 95
+         &ObjectTypeDescription = "Dependency Documents";
+         Break;
+      When 96
+         &ObjectTypeDescription = "Document Schema";
+         Break;
+      When 97
+         &ObjectTypeDescription = "Essbase Cube Dimensions";
+         Break;
+      When 98
+         &ObjectTypeDescription = "Essbase Cube Outlines";
+         Break;
+      When 99
+         &ObjectTypeDescription = "Essbase Cube Connections";
+         Break;
+      When 100
+         &ObjectTypeDescription = "Essbase Cube Templates";
+         Break;
+      When 101
+         &ObjectTypeDescription = "Delimited Schemas";
+         Break;
+      When 102
+         &ObjectTypeDescription = "Positional Schemas";
+         Break;
+      When 103
+         &ObjectTypeDescription = "Application Data Set Definitions";
+         Break;
+      When 104
+         &ObjectTypeDescription = "Test Definitions";
+         Break;
+      When 105
+         &ObjectTypeDescription = "Test Cases";
+         Break;
+      When 106
+         &ObjectTypeDescription = "Application Data Set Bindings";
+         Break;
+      When 107
+         &ObjectTypeDescription = "Feed Definitions";
+         Break;
+      When 108
+         &ObjectTypeDescription = "Feed Categories";
+         Break;
+      When 109
+         &ObjectTypeDescription = "Feed Data Type";
+         Break;
+      When 110
+         &ObjectTypeDescription = "JSON Documents";
+         Break;
+      When 111
+         &ObjectTypeDescription = "Related Content Definition";
+         Break;
+      When 112
+         &ObjectTypeDescription = "Related Content Services";
+         Break;
+      When 113
+         &ObjectTypeDescription = "Related Content Configurations";
+         Break;
+      When 114
+         &ObjectTypeDescription = "Related Content Layouts";
+         Break;
+      When 115
+         &ObjectTypeDescription = "Search Attributes";
+         Break;
+      When 116
+         &ObjectTypeDescription = "Search Definitions";
+         Break;
+      When 117
+         &ObjectTypeDescription = "Search Categories";
+         Break;
+      When 118
+         &ObjectTypeDescription = "Search Contexts";
+         Break;
+      When 119
+         &ObjectTypeDescription = "Integration Groups";
+         Break;
+      When 120
+         &ObjectTypeDescription = "XML Documents";
+         Break;
+      When 121
+         &ObjectTypeDescription = "MAP Layouts";
+         Break;
+      When 122
+         &ObjectTypeDescription = "MAP Template";
+         Break;
+      When 123
+         &ObjectTypeDescription = "Composite Query";
+         Break;
+      When 125
+         &ObjectTypeDescription = "MAP Admin";
+         Break;
+      When 126
+         &ObjectTypeDescription = "MAP Store";
+         Break;
+      When-Other
+         &ObjectTypeDescription = &ObjectType | "(?)";
+      End-Evaluate;
+      
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &ObjectTypeDescription = "[" | &ObjectType | "] " | &ObjectTypeDescription;
+      End-If;
+      
+      MessageBox(0, "", 49999, &ObjectType, &ObjectTypeDescription);
+      
+      &pFile.WriteLine(" ");
+      &pFile.WriteLine(&ObjectTypeDescription);
+      &pFile.WriteLine("PEOPLESOFT OBJECT" | &delim | "TYPE" | &delim | "DESCRIPTION" | &delim | "ACTION");
+      
+      &HoldObjectType = &ObjectType;
+   End-If;
+   
+   &pObject = &ObjectValue1;
+   
+   If All(&ObjectValue2) Then
+      &pObject = &pObject | "." | &ObjectValue2;
+   End-If;
+   
+   If All(&ObjectValue3) Then
+      &pObject = &pObject | "." | &ObjectValue3;
+   End-If;
+   
+   If All(&ObjectValue4) Then
+      &pObject = &pObject | "." | &ObjectValue4;
+   End-If;
+   
+   &pType = " ";
+   &pDescription = " ";
+   
+   Evaluate &UpgradeAction
+   When 0
+      &pUpgradeAction = "Copy";
+   When 1
+      &pUpgradeAction = "Delete";
+   When 2
+      &pUpgradeAction = "None";
+   When 3
+      &pUpgradeAction = "CopyProp";
+   End-Evaluate;
+   
+   Evaluate &ObjectType
+   When 0 /* Record [PSRECDEFN] */
+      SQLExec("SELECT RECTYPE, RECDESCR FROM PSRECDEFN WHERE RECNAME = :1", &ObjectValue1, &oType, &pDescription);
+      Evaluate &oType
+      When 0
+         &pType = "SQL Table";
+         Break;
+      When 1
+         &pType = "SQL View";
+         Break;
+      When 2
+         &pType = "Derived Work";
+         Break;
+      When 3
+         &pType = "Subrecord";
+         Break;
+      When 5
+         &pType = "Dynamic View";
+         Break;
+      When 6
+         &pType = "Query View";
+         Break;
+      When 7
+         &pType = "Temp Table";
+         Break;
+      End-Evaluate;
+      Break;
+      
+   When 1 /* Index [PSINDEXDEFN] */
+      Break;
+      
+   When 2 /* Field [PSDBFIELD] */
+      Evaluate &ObjectId2
+      When 0
+         SQLExec("SELECT LONGNAME FROM PSDBFLDLABL WHERE FIELDNAME = :1 AND DEFAULT_LABEL = 1", &ObjectValue1, &pDescription);
+         Break;
+      When 102
+         &pType = "Field Label";
+         SQLExec("SELECT LONGNAME FROM PSDBFLDLABL WHERE FIELDNAME = :1 AND LABEL_ID = :2", &ObjectValue1, &ObjectValue2, &pDescription);
+         Break;
+      End-Evaluate;
+      Break;
+      
+   When 3 /* Field Format [PSFMTDEFN] */
+      SQLExec("SELECT DESCR FROM PSFMTDEFN WHERE FORMATFAMILY = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 4 /* Translate Value [PSXLATITEM] */
+      SQLExec("SELECT XLATLONGNAME FROM PSXLATITEM WHERE FIELDNAME = :1 AND FIELDVALUE = :2 AND EFFDT = %Datein(:3)", &ObjectValue1, &ObjectValue2, &ObjectValue3, &pDescription);
+      Break;
+      
+   When 5 /* Page [PSPNLDEFN] */
+      SQLExec("SELECT PNLTYPE, DESCR FROM PSPNLDEFN WHERE PNLNAME = :1", &ObjectValue1, &oType, &pDescription);
+      Evaluate &oType
+      When 0
+         &pType = "Standard";
+         Break;
+      When 1
+         &pType = "Subpage";
+         Break;
+      When 2
+         &pType = "Secondary";
+         Break;
+      When 3
+         &pType = "Popup";
+         Break;
+      When 4
+         &pType = "Header";
+         Break;
+      When 6
+         &pType = "Footer";
+         Break;
+      When 7
+         &pType = "Layout";
+         Break;
+      When 8
+         &pType = "Search";
+         Break;
+      When 9
+         &pType = "Layout";
+         Break;
+      End-Evaluate;
+      Break;
+      
+   When 6 /* Menu [PSMENUDEFN] */
+      SQLExec("SELECT DESCR FROM PSMENUDEFN WHERE MENUNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 7 /* Component [PSPNLGRPDEFN] */
+      SQLExec("SELECT  DESCR FROM PSPNLGRPDEFN WHERE PNLGRPNAME = :1 AND MARKET = :2", &ObjectValue1, &ObjectValue2, &pDescription);
+      Break;
+      
+   When 8 /* Record PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 9 /* Menu PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 10 /* Query [PSQRYDEFN] */
+      If All(&ObjectValue2) Then
+         &pObject = &ObjectValue2 | "." | &ObjectValue1;
+         &pType = "Private";
+      End-If;
+      
+      SQLExec("SELECT QRYTYPE, DESCR FROM PSQRYDEFN WHERE QRYNAME = :1 AND OPRID = :2", &ObjectValue1, &ObjectValue2, &oType, &pDescription);
+      
+      Evaluate &oType
+      When 4
+         &pType = "RoleQuery " | &pType;
+      When 5
+         &pType = "Process " | &pType;
+      When 7
+         &pType = "Archive " | &pType;
+      End-Evaluate;
+      Break;
+      
+   When 11 /* Tree Structure [PSTREESTRCT] */
+      SQLExec("SELECT DESCR FROM PSTREESTRCT WHERE TREE_STRCT_ID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 12 /* Tree [PSTREEDEFN] */
+      If None(&ObjectValue1) Then
+         &pObject = &blankObject;
+      Else
+         &pObject = &ObjectValue1;
+      End-If;
+      
+      If None(&ObjectValue2) Then
+         &pObject = &pObject | "." | &blankObject;
+      Else
+         &pObject = &pObject | "." | &ObjectValue2;
+      End-If;
+      
+      &pObject = &pObject | "." | &ObjectValue3 | "." | &ObjectValue4;
+      
+      SQLExec("SELECT DESCR, TREE_STRCT_ID FROM PSTREEDEFN WHERE SETID = :1 AND SETCNTRLVALUE = :2 AND TREE_NAME = :3 AND EFFDT = %DateIn(:4)", &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pDescription, &TreeStructure);
+      SQLExec("SELECT DESCR FROM PSTREESTRCT WHERE TREE_STRCT_ID = :1", &TreeStructure, &pType);
+      Break;
+      
+   When 13 /* Access Group [PS_ACCESS_GRP_TBL] */
+      SQLExec("SELECT DESCR FROM PS_ACCESS_GRP_TBL WHERE ACCESS_GROUP = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 14 /* Color [PSCOLORDEFN] */
+      Break;
+      
+   When 15 /* Style [PSSTYLEDEFN] */
+      Break;
+      
+   When 16 /* Not Used */
+      &pType = "Not Used [" | &ObjectType | "]";
+      Break;
+      
+   When 17 /* Business Process [PSBUSPROCDEFN] */
+      SQLExec("SELECT DESCR60 FROM PSBUSPROCDEFN WHERE BUSPROCNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 18 /* Activity [PSACTIVITYDEFN] */
+      SQLExec("SELECT DESCR60 FROM PSACTIVITYDEFN WHERE ACTIVITYNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 19 /* Roles [PSROLEDEFN] */
+      SQLExec("SELECT DESCR, ROLETYPE FROM PSROLEDEFN WHERE ROLENAME = :1", &ObjectValue1, &pDescription, &pType);
+      If &pType = "U" Then
+         &pType = "User";
+      Else
+         &pType = "Query";
+      End-If;
+      Break;
+      
+   When 20 /* Process Definitions [PS_PRCSDEFN] */
+      &pObject = &ObjectValue2;
+      &pType = &ObjectValue1;
+      SQLExec("SELECT DESCR FROM PS_PRCSDEFN WHERE PRCSTYPE = :1 AND PRCSNAME = :2", &ObjectValue1, &ObjectValue2, &pDescription);
+      Break;
+      
+   When 21 /* Servers [PS_SERVERDEFN] */
+      SQLExec(" SELECT DESCR FROM PS_SERVERDEFN WHERE SERVERNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 22 /* Process Types [PS_PRCSTYPEDEFN] */
+      &pObject = &ObjectValue1;
+      SQLExec("SELECT PRCSTYPEDESCR FROM PS_PRCSTYPEDEFN WHERE PRCSTYPE = :1 AND OPSYS = :2 AND DBTYPE = :3", &ObjectValue1, &ObjectValue2, &ObjectValue3, &pDescription);
+      Evaluate &ObjectValue2
+      When "1"
+         &pType = "Client";
+         Break;
+      When "2"
+         &pType = "Windows";
+         Break;
+      When "3"
+         &pType = "OS/2";
+         Break;
+      When "4"
+         &pType = "UNIX";
+         Break;
+      When "6"
+         &pType = "MPE/XL";
+         Break;
+      When "7"
+         &pType = "OS390";
+         Break;
+      When "8"
+         &pType = "NT";
+         Break;
+      End-Evaluate;
+      
+      If All(&pType) Then
+         &pType = &pType | ":";
+      End-If;
+      
+      Evaluate &ObjectValue3
+      When "1"
+         &pType = &pType | "DB2";
+         Break;
+      When "2"
+         &pType = &pType | "Oracle";
+         Break;
+      When "3"
+         &pType = &pType | "Informix";
+         Break;
+      When "4"
+         &pType = &pType | "DB2/UNIX";
+         Break;
+      When "5"
+         &pType = &pType | "Allbase";
+         Break;
+      When "6"
+         &pType = &pType | "Sybase";
+         Break;
+      When "7"
+         &pType = &pType | "Microsoft";
+         Break;
+      When "8"
+         &pType = &pType | "DB2/400";
+         Break;
+      End-Evaluate;
+      Break;
+      
+   When 23 /* Job Definitions [PS_PRCSJOBDEFN] */
+      SQLExec("SELECT DESCR FROM PS_PRCSJOBDEFN WHERE PRCSJOBNAME = :1 AND PRCSTYPE = 'PSJob'", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 24 /* Recurrences [PS_PRCSRECUR] */
+      SQLExec("SELECT RECURDESCR FROM PS_PRCSRECUR WHERE RECURNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 25 /* Message Catalog [PSMSGCATDEFN] */
+      &pObject = "=""" | &ObjectValue1 | "," | &ObjectValue2 | """";
+      
+      SQLExec("SELECT MSG_SEVERITY, MESSAGE_TEXT FROM PSMSGCATDEFN WHERE MESSAGE_SET_NBR = :1 AND MESSAGE_NBR = :2", &ObjectValue1, &ObjectValue2, &pType, &pDescription);
+      Evaluate &pType
+      When "C"
+         &pType = "Cancel";
+      When "E"
+         &pType = "Error";
+      When "I"
+         &pType = "Information";
+      When "M"
+         &pType = "Message";
+      When "W"
+         &pType = "Warning";
+      End-Evaluate;
+      Break;
+      
+   When 26 /* Dimension [PS_DIMENSION] */
+      SQLExec("SELECT B.XLATLONGNAME FROM PS_DIMENSION A, PSXLATITEM B WHERE A.DIMENSION_ID = :1 AND A.DESCR = :2 AND B.FIELDNAME = 'DIMENSION_TYPE' AND B.FIELDVALUE = A.DIMENSION_TYPE AND B.EFFDT = (SELECT MAX(B_ED.EFFDT) FROM PSXLATITEM B_ED WHERE B_ED.FIELDNAME = B.FIELDNAME AND B_ED.FIELDVALUE = B.FIELDVALUE AND B_ED.EFFDT <= %CurrentDateIn)", &ObjectValue1, &ObjectValue3, &pType);
+      &pObject = &ObjectValue1;
+      &pDescription = &ObjectValue3;
+      Break;
+      
+   When 27 /* Cube Definition [PSACECUBE] */
+      &pObject = &ObjectValue1;
+      &pDescription = &ObjectValue2;
+      Break;
+      
+   When 28 /* Cube Instance [PS_ANALYSIS_DB] */
+      &pObject = &ObjectValue1;
+      &pDescription = &ObjectValue2;
+      Break;
+      
+   When 29 /* Business Interlink [PSIODEFN] */
+      SQLExec("SELECT IODESCR FROM PSIODEFN WHERE IONAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 30 /* SQL [PSSQLDEFN] */
+      &pObject = &ObjectValue1;
+      SQLExec("SELECT B.DESCR FROM PSSQLDEFN A, PSSQLDESCR B WHERE A.SQLID = :1 AND A.SQLTYPE = :2 AND B.SQLID = A.SQLID AND B.SQLTYPE = A.SQLTYPE", &ObjectValue1, &ObjectValue2, &pDescription);
+      
+      Evaluate &ObjectValue2
+      When "0"
+         &pType = "Normal SQL";
+         Break;
+      When "1"
+         &pType = "Application Engine SQL";
+         Break;
+      When "2"
+         &pType = "SQL View Text";
+         Break;
+      When "5"
+         &pType = "Audit SQL";
+         Break;
+      When "6"
+         /* XSLT SQL handled as &ObjectType 62 */
+         Break;
+      End-Evaluate;
+      Break;
+      
+   When 31 /* File Layout [PSFLDDEFN] */
+      SQLExec("SELECT DESCR, FLDFORMAT FROM PSFLDDEFN WHERE FLDDEFNNAME = :1", &ObjectValue1, &pDescription, &oType);
+      
+      Evaluate &oType
+      When 0
+         &pType = "Fixed";
+      When 1
+         &pType = "CSV";
+      When 2
+         &pType = "XML";
+      End-Evaluate;
+      Break;
+      
+   When 32 /* Component Interface [PSBCDEFN] */
+      SQLExec("SELECT DESCR FROM PSBCDEFN WHERE BCNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 33 /* Application Engine Program [PSAEAPPLDEFN] */
+      SQLExec("SELECT DESCR FROM PSAEAPPLDEFN WHERE AE_APPLID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 34 /* Application Engine Section [PSAESECTDEFN] */
+      SQLExec("SELECT B.DESCR FROM PSAESECTDEFN A, PSAESECTDTLDEFN B WHERE A.AE_APPLID = :1 AND A.AE_SECTION = :2 AND B.AE_APPLID = A.AE_APPLID AND B.AE_SECTION = A.AE_SECTION", &ObjectValue1, &ObjectValue2, &pDescription);
+      Break;
+      
+   When 35 /* Message Node [PSMSGNODEDEFN] */
+      SQLExec("SELECT DESCR, NODE_TYPE FROM PSMSGNODEDEFN WHERE MSGNODENAME = :1", &ObjectValue1, &pDescription, &pType);
+      
+      If &pType = "EX" Then
+         &pType = "External";
+      End-If;
+      Break;
+      
+   When 36 /* Message Channel [PSMSGDEFN] */
+      SQLExec("SELECT DESCR FROM PSMSGDEFN WHERE MSGNAME = :1", &ObjectValue1, &pDescription);
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table could be PSMSGDEFN]";
+      End-If;
+      Break;
+      
+   When 37 /* Message [PSMSGDEFN] */
+      SQLExec("SELECT DESCR FROM PSMSGDEFN WHERE MSGNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 38 /* Approval Rule Set [PS_APPR_RULE_HDR] */
+      SQLExec("SELECT DESCR60 FROM PS_APPR_RULE_HDR WHERE APPR_RULE_SET = :1 AND EFFDT = %DateIn(:2)", &ObjectValue1, &ObjectValue2, &pDescription);
+      Break;
+      
+   When 39 /* Message PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 40 /* Subscription PeopleCode [PSPCMPROG] */;
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 41 /* Not Used */
+      &pType = "Not Used [" | &ObjectType | "]";
+      Break;
+      
+   When 42 /* Component Interface PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 43 /* Application Engine PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 44 /* Page PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 45 /* Page Field PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 46 /* Component PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 47 /* Component Record PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 48 /* Component Rec Field PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 49 /* Image [PSCONTDEFN] */
+      SQLExec("SELECT DESCR, CONTFMT FROM PSCONTDEFN WHERE CONTNAME = :1 AND CONTTYPE = :2", &ObjectValue1, &ObjectValue2, &pDescription, &pType);
+      &pObject = &ObjectValue1;
+      &pType = Upper(&pType);
+      Break;
+      
+   When 50 /* Style Sheet [STYLESHEETTYPE] */
+      SQLExec("SELECT DESCR, STYLESHEETTYPE FROM PSSTYLSHEETDEFN WHERE STYLESHEETNAME = :1", &ObjectValue1, &pDescription, &oType);
+      
+      Evaluate &oType
+      When 0
+         &pType = "Style Sheet";
+         Break;
+      When 1
+         &pType = "Sub Style Sheet";
+         Break;
+      When 2
+         &pType = "Freeform Sub Style Sheet";
+         Break;
+      End-Evaluate;
+      Break;
+      
+   When 51 /* HTML [PSCONTDEFN] */
+      SQLExec("SELECT DESCR FROM PSCONTDEFN WHERE CONTNAME = :1 AND CONTTYPE = :2", &ObjectValue1, &ObjectValue2, &pDescription);
+      &pObject = &ObjectValue1;
+      Break;
+      
+   When 52 /* Not Used */
+      &pType = "Not Used [" | &ObjectType | "]";
+      Break;
+      
+   When 53 /* Permission List [PSCLASSDEFN] */
+      SQLExec("SELECT CLASSDEFNDESC FROM PSCLASSDEFN WHERE CLASSID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 54 /* Portal Registry Definition [PSPRDMDEFN] */
+      SQLExec("SELECT DESCR254 FROM PSPRDMDEFN WHERE PORTAL_NAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 55 /* Portal Registry Structure [PSPRSMDEFN] */
+      &pObject = &ObjectValue1 | "." | &ObjectValue3;
+      SQLExec("SELECT PORTAL_LABEL FROM PSPRSMDEFN WHERE PORTAL_NAME = :1 AND PORTAL_REFTYPE = :2 AND  PORTAL_OBJNAME = :3", &ObjectValue1, &ObjectValue2, &ObjectValue3, &pDescription);
+      
+      Evaluate &ObjectValue2
+      When "C"
+         &pType = "Content";
+         Break
+      When "F"
+         &pType = "Folder";
+         Break;
+      End-Evaluate;
+      Break;
+      
+   When 56 /* URL Definition [PSURLDEFN] */
+      SQLExec("SELECT DESCR FROM PSURLDEFN WHERE URL_ID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 57 /* Application Package [PSPACKAGEDEFN] */
+      SQLExec("SELECT DESCR from PSPACKAGEDEFN where PACKAGEID = :1 AND PACKAGEROOT = :2 AND QUALIFYPATH = :3", &ObjectValue1, &ObjectValue2, &ObjectValue3, &pDescription);
+      Break;
+      
+   When 58 /* Application Package PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 59 /* Portal Registry User Homepage [PSPRUHDEFN] */
+      Break;
+      
+   When 60 /* Analytic Type [PSOPTPRBTYPE] */
+      SQLExec("SELECT DESCR FROM PSOPTPRBTYPE WHERE PROBTYPE = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 61 /* Archive Template [PS_ARCH_PROJ] */
+      SQLExec("SELECT DESCR FROM PS_ARCH_PROJ WHERE PSARCH_ID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 62 /* XSLT [PSSQLDEFN] */
+      &pType = "XSLT SQL";
+      Break;
+      
+   When 63 /* Portal Registry User Favorite [PSPRUFDEFN] */
+      SQLExec("SELECT PORTAL_OBJNAME FROM PSPRUFDEFN WHERE PORTAL_NAME = :1 AND OPRID = :2 AND PORTAL_REFTYPE = :3 AND PORTAL_LABEL = :4", &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pDescription);
+      
+      If All(&pDescription) Then
+         &pDescription = "My Favorites > " | NavigationPath(&ObjectValue1, &pDescription);
+      Else
+         &pDescription = "My Favorites";
+      End-If;
+      
+      &pObject = &ObjectValue1 | "." | &ObjectValue2 | "." | &ObjectValue4;
+      
+      Evaluate &ObjectValue3
+      When "L"
+         &pType = "Fav Folder";
+         Break
+      When "V"
+         &pType = "Favorite";
+         Break;
+      End-Evaluate;
+      Break;
+      
+   When 64 /* Mobile Page [PSMPDEFN] */
+      SQLExec("SELECT DESCR FROM PSMPDEFN WHERE MOBILEPAGENAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 65 /* Relationships [PSRELATIONSHIP] */
+      SQLExec("SELECT DESCR FROM PSRELATIONSHIP WHERE RELATIONSHIPID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 66 /* Component Interface Property PeopleCode [PSPCMPROG] */
+      PeopleCodeDetails(&ObjectType, &ObjectValue1, &ObjectValue2, &ObjectValue3, &ObjectValue4, &pObject, &pType);
+      Break;
+      
+   When 67 /* Optimization Model [PSOPTMODEL] */
+      SQLExec("SELECT DESCR FROM PSOPTMODEL WHERE PAMS_MODEL_NAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 68 /* File References [PSFILEREDEFN] */
+      &pObject = &ObjectValue1;
+      &pType = &ObjectValue2;
+      Break;
+      
+   When 69 /* File Type Codes [PSTYPECODEDEFN] */
+      SQLExec("SELECT FILEREFPATH FROM PSTYPECODEDEFN WHERE FILEREFTYPECODE = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 70 /* Archive Object [PSARCHOBJDEFN] */
+      SQLExec("SELECT DESCR FROM PSARCHOBJDEFN WHERE PSARCH_OBJECT = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 71 /* Archive Templates (Type 2) [PSARCHTEMPLATE] */
+      SQLExec("SELECT DESCR FROM PSARCHTEMPLATE WHERE PSARCH_ID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 72 /* Diagnostic Plug-ins [PSDIAGREG] */
+      SQLExec("SELECT DESCR FROM PSPACKAGEDEFN WHERE PACKAGEID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 73 /* Analytic Model [PSACEMDLDEFN] */
+      SQLExec("SELECT DESCR FROM PSACEMDLDEFN WHERE ACEMODELID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 74 /* Not Used */
+      &pType = "Not Used [" | &ObjectType | "]";
+      Break;
+      
+   When 75 /* Java Portlet User Preferences [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 76 /* WSRP Remote Producers [PSWSRPPRDDEFN] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table could be PSWSRPPRDDEFN]]";
+      End-If;
+      Break;
+      
+   When 77 /* WSRP Remote Portlets [PSWSRPPLTDEFN] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table could be PSWSRPPLTDEFN]";
+      End-If;
+      Break;
+      
+   When 78 /* WSRP Cloned Portlet Handles [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 79 /* Service [PSSERVICE] */
+      SQLExec("SELECT DESCR FROM PSSERVICE WHERE IB_SERVICENAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 80 /* Service Operation [PSOPERATION] */
+      SQLExec("SELECT DESCR FROM PSOPERATION WHERE IB_OPERATIONNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 81 /* Service Operation Handler [PSOPRHDLR] */
+      SQLExec("SELECT DESCR FROM PSOPRHDLR WHERE IB_OPERATIONNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 82 /* Service Operation Version [PSOPRVERDFN] */
+      SQLExec("SELECT DESCR FROM PSOPRVERDFN WHERE IB_OPERATIONNAME = :1 AND VERSIONNAME = :2", &ObjectValue1, &ObjectValue2, &pDescription);
+      Break;
+      
+   When 83 /* Service Operation Routing [PSIBRTNGDEFN] */
+      SQLExec("SELECT DESCR FROM PSIBRTNGDEFN WHERE ROUTINGDEFNNAME = :1 AND EFFDT =%DateIn(:2)", &ObjectValue1, &ObjectValue2, &pDescription);
+      Break;
+      
+   When 84 /* IB Queues [PSQUEUEDEFN] */
+      SQLExec("SELECT DESCR FROM PSQUEUEDEFN WHERE QUEUENAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 85 /* BIP Template Definition [PSXPTMPLDEFN] */
+      SQLExec("SELECT DESCR FROM PSXPTMPLDEFN WHERE TMPLDEFN_ID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 86 /* BIP Report Definition [PSXPRPTDEFN] */
+      SQLExec("SELECT DESCR FROM PSXPRPTDEFN WHERE REPORT_DEFN_ID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 87 /* BIP File Definition [PSFILEDEFN] */
+      SQLExec("SELECT USERFILENAME FROM PSFILEDEFN WHERE FILEID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 88 /* BIP Data Source Definitions [PSXPDATASRC] */
+      SQLExec("SELECT DESCR FROM PSXPDATASRC WHERE DS_TYPE = :1 AND DS_ID = :2", &ObjectValue1, &ObjectValue2, &pDescription);
+      &pObject = &ObjectValue2;
+      
+      Evaluate &ObjectValue1
+      When "CQR"
+         &pType = "Connected Query";
+         Break;
+      When "QRY"
+         &pType = "Query";
+         Break;
+      When "RST"
+         &pType = "Rowset";
+         Break;
+      When "XMD"
+         &pType = "XMLDoc Object";
+         Break;
+      When "XML"
+         &pType = "XML File";
+         Break;
+      When-Other
+         &pType = &ObjectValue1;
+      End-Evaluate;
+      Break;
+      
+   When 89 /* WSDL [PSIBWSDLDFN] */
+      Break;
+      
+   When 90 /* Message Schema [PSIBSCMADFN] */
+      Break;
+      
+   When 91 /* Connected Query [PSCONQRSDEFN] */
+      If All(&ObjectValue2) Then
+         &pObject = &ObjectValue2 | "." | &ObjectValue1;
+         &pType = "Private";
+      End-If;
+      
+      SQLExec("SELECT DESCR FROM PSCONQRSDEFN WHERE CONQRSNAME = :1 AND OPRID = :2", &ObjectValue1, &ObjectValue2, &pDescription);
+      Break;
+      
+   When 92 /* Logical Schema [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 93 /* XML Schema [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 94 /* Relational Schema [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 95 /* Dependency Document [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 96 /* Document Schema [PSLSDEFN] */
+      SQLExec("SELECT DESCR FROM PSLSDEFN WHERE IB_PACKAGEID = :1 AND IB_SCHEMANAME = :2 AND IB_VARIANTNAME = :3", &ObjectValue1, &ObjectValue2, &ObjectValue3, &pDescription);
+      Break;
+      
+   When 97 /* Essbase Cube Dimension [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 98 /* Essbase Cube Outline [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 99 /* Essbase Cube Connection [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 100 /* Essbase Cube Template [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 101 /* Delimited Schema [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 102 /* Positional Schema [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 103 /* Data Set Definition [PSADSDEFN] */
+      SQLExec("SELECT DESCR FROM PSADSDEFN WHERE PTADSNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 104 /* Test [PSPTTSTDEFN] */
+      SQLExec("SELECT DESCR FROM PSPTTSTDEFN WHERE PTTST_NAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 105 /* Test Case [PSPTTSTCASE] */
+      SQLExec("SELECT DESCR FROM PSPTTSTCASE WHERE PTTST_NAME = :1 AND PTTST_CASE_NAME = :2", &ObjectValue1, &ObjectValue2, &pDescription);
+      Break;
+      
+   When 106 /* Application Data Set Binding [PSPROJBINDITEM] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table could be PSPROJBINDITEM]";
+      End-If;
+      Break;
+      
+   When 107 /* Feed Definition [PSFP_FEED] */
+      SQLExec("SELECT DESCR, PTFP_FEED_FORMAT FROM PSFP_FEED WHERE PTFP_FEED_ID = :1", &ObjectValue1, &pDescription, &pType);
+      Evaluate &pType
+      When "A10"
+         &pType = "ATOM 1.0";
+      When "ORA"
+         &pType = "OraRSS";
+      When "R20"
+         &pType = "RSS 2.0";
+      End-Evaluate;
+      Break;
+      
+   When 108 /* Feed Category [PSFP_CATEGORY] */
+      SQLExec("SELECT DESCR FROM PSFP_CATEGORY WHERE PTFP_CATEGORY_ID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 109 /* Feed Data Type [PSFP_DATATYPE] */
+      SQLExec("SELECT DESCR FROM PSFP_DATATYPE WHERE PTFP_DATATYPE_ID = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 110 /* JSON Document [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 111 /* Related Content Definition [PSPTCSSRVDEFN] */
+      SQLExec("SELECT A.DESCR254, B.XLATLONGNAME FROM PSPTCSSRVDEFN A, PSXLATITEM B WHERE A.PTCS_SERVICEID = :1 AND B.FIELDNAME = 'PTCS_SERVICEURLTYP' AND B.FIELDVALUE = A.PTCS_SERVICEURLTYP AND B.EFFDT = (SELECT MAX(EFFDT) FROM PSXLATITEM WHERE FIELDNAME = B.FIELDNAME AND FIELDVALUE = B.FIELDVALUE AND EFFDT <= %CurrentDateIn)", &ObjectValue1, &pDescription, &pType);
+      Break;
+      
+   When 112 /* Related Content Services [PSPTCS_SRVCFG] */
+      &pDescription = NavigationPath(&ObjectValue1, &ObjectValue2);
+      Break;
+      
+   When 113 /* Related Content Configuration [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 114 /* Related Content Layout [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 115 /* Search Attribute [PSPTSF_ATTRS] */
+      SQLExec("SELECT A.FIELDNAME, B.XLATLONGNAME FROM PSPTSF_ATTRS A, PSXLATITEM B WHERE A.PTSF_SRCATTR_NAME = :1 AND B.FIELDNAME = 'PTSF_SRCATTR_TYPE' AND B.FIELDVALUE = A.PTSF_SRCATTR_TYPE AND B.EFFDT = (SELECT MAX(EFFDT) FROM PSXLATITEM WHERE FIELDNAME = B.FIELDNAME AND FIELDVALUE = B.FIELDVALUE AND EFFDT <= %CurrentDateIn)", &ObjectValue1, &pDescription, &pType);
+      Break;
+      
+   When 116 /* Search Definition [PSPTSF_SD] */
+      SQLExec("SELECT DESCR100 FROM PSPTSF_SD WHERE PTSF_SBO_NAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 117 /* Search Category [PSPTSF_SRCCAT] */
+      SQLExec("SELECT DESCR100 FROM PSPTSF_SRCCAT WHERE PTSF_SRCCAT_NAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 118 /* Search Context [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 119 /* Integration Group [PSIBGROUPDEFN] */
+      SQLExec("SELECT DESCR FROM PSIBGROUPDEFN WHERE IB_INTGROUPNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 120 /* XML Documents [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 121 /* MAP Layouts [PSDOCLODEFN] */
+      SQLExec("SELECT DESCR FROM PSDOCLODEFN WHERE IBDOCLAYOUTNAME = :1", &ObjectValue1, &pDescription);
+      Break;
+      
+   When 122 /* MAP Template [TBD] */
+      If HC_PROJLIST_AET.PROJECTNAME.Value = "HC_TEST_PROJECT" Then
+         &pDescription = "[Source Table Unknown]";
+      End-If;
+      Break;
+      
+   When 123 /* Composite Query [PSCPQDEFN] */
+      If All(&ObjectValue2) Then
+         &pObject = &ObjectValue2 | "." | &ObjectValue1;
+         &pType = "Private";
+      End-If;
+      
+      SQLExec("SELECT DESCR FROM PSCPQDEFN WHERE OPRID = :2 AND CPQNAME = :1", &ObjectValue1, &ObjectValue2, &pDescription);
+      Break;
+      
+   When 124 /* Not Used */
+      &pType = "Not Used [" | &ObjectType | "]";
+      Break;
+      
+   When 125 /* MAP Admin [PSMAPMDEFN] */
+      Break;
+      
+   When 126 /* MAP Store [PSMAPSDEFN] */
+      SQLExec("SELECT DESCR FROM PSMAPSDEFN WHERE IB_STORELAYOUTNAME = :1 and IB_DOC_LBL_ID = :2", &ObjectValue1, &ObjectValue2, &pDescription);
+      Break;
+      
+   When-Other
+      &pType = "?ObjectType(" | &ObjectType | ")?";
+      Break;
+      
+   End-Evaluate;
+   
+   &pFile.WriteLine(&pObject | &delim | &pType | &delim | &pDescription | &delim | &pUpgradeAction);
+   
+End-While;
+
+&pFile.Close();

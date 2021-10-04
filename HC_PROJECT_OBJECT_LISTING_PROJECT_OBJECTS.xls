@@ -1,0 +1,70 @@
+Project
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_PROJECT_OBJECT_LISTING	 	Project Object Listing	Copy
+ 
+Records
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_PROJLIST_AET	Derived Work	HC_PROJLIST AET	Copy
+HC_PROJLIST_RC	SQL Table	Project List Run Control	Copy
+ 
+Pages
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_PROJLIST_RUNCTL	Standard	Project Listing Run Control	Copy
+ 
+Menus
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_DEV_TOOLS	 	HC Dev Tools Menu	Copy
+ 
+Components
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_PROJLIST_RUNCTL.GBL	 	Project Object Listing	Copy
+ 
+Record PeopleCode
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_PROJLIST_RC.PROJECTNAME	FieldFormula	 	Copy
+ 
+Process Definitions
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_PROJLIST	Application Engine	Project Object Listing	Copy
+ 
+SQL Definitions
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_PROJLIST MAIN    Step00  S	Application Engine SQL		Copy
+HC_PROJLIST MAIN    Step99  S	Application Engine SQL		Copy
+HC_PROJLIST UPGDTLS 0       D	Application Engine SQL		Copy
+HC_PROJLIST UPGDTLS 2       D	Application Engine SQL		Copy
+HC_PROJLIST UPGDTLS 4       D	Application Engine SQL		Copy
+HC_PROJLIST UPGDTLS 5       D	Application Engine SQL		Copy
+HC_PROJLIST UPGDTLS 6       D	Application Engine SQL		Copy
+HC_PROJLIST UPGDTLS 7       D	Application Engine SQL		Copy
+HC_PROJLIST_COMPONENTS	Normal SQL	Project List Components	Copy
+HC_PROJLIST_COMPONENT_PAGES	Normal SQL	Project List Component Pages	Copy
+HC_PROJLIST_FIELDS	Normal SQL	Project List Fields	Copy
+HC_PROJLIST_MENUS	Normal SQL	Project List Menus	Copy
+HC_PROJLIST_MENU_COMPONENTS	Normal SQL	Project List Menu Components	Copy
+HC_PROJLIST_PAGES	Normal SQL	Project List Pages	Copy
+HC_PROJLIST_PAGE_FIELDS	Normal SQL	Project List Page Fields	Copy
+HC_PROJLIST_PROJECT	Normal SQL	Project List Project	Copy
+HC_PROJLIST_RECORDS	Normal SQL	Project List Records	Copy
+HC_PROJLIST_RECORD_FIELDS	Normal SQL	Project List Record Fields	Copy
+HC_PROJLIST_TRANSLATES	Normal SQL	Project List Translates	Copy
+ 
+Application Engine Programs
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_PROJLIST	 	Project Object Listing	Copy
+ 
+Application Engine Sections
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_PROJLIST.MAIN	 	MAIN description	Copy
+HC_PROJLIST.UPGDTLS	 	Upgrade Details	Copy
+ 
+Application Engine PeopleCode
+PEOPLESOFT OBJECT	TYPE	DESCRIPTION	ACTION
+HC_PROJLIST.MAIN.GBL.default.1900-01-01.Step01	OnExecute	 	Copy
+HC_PROJLIST.UPGDTLS.GBL.default.1900-01-01.0	OnExecute	 	Copy
+HC_PROJLIST.UPGDTLS.GBL.default.1900-01-01.2	OnExecute	 	Copy
+HC_PROJLIST.UPGDTLS.GBL.default.1900-01-01.4	OnExecute	 	Copy
+HC_PROJLIST.UPGDTLS.GBL.default.1900-01-01.5	OnExecute	 	Copy
+HC_PROJLIST.UPGDTLS.GBL.default.1900-01-01.6	OnExecute	 	Copy
+HC_PROJLIST.UPGDTLS.GBL.default.1900-01-01.7	OnExecute	 	Copy
+HC_PROJLIST.UPGDTLS.GBL.default.1900-01-01.PROJECT	OnExecute	 	Copy
