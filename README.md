@@ -1,6 +1,15 @@
 # PeopleSoft Project Object Listing
-An Application Engine process to write a csv of objects listed in a project. This includes the object type, object name, type, description (if applicable), and action. 
+An Application Engine process to write a list of objects contained within a project. This includes the object type, object name, type, description (if applicable), and action.
 
+Files contained in this git:
+<ul>
+<li>.zip file is the complete PeopleSoft project including the application engine, run control page, etc, ready to be imported. This has been exported with PeopleTools 8.56. 
+<li>.txt file is the PeopleCode listing alone.</li>
+<li>.xls file is a sample of the output from the process</li>
+</ul>
+
+And here is the object type mapping I've been able to pull together, so far:
+    
 <table>
     <thead>
         <tr>
