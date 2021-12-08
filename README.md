@@ -1,4 +1,4 @@
-# PeopleSoft Project Object Listing
+# PeopleSoft Project Object Listing Utility
 An Application Engine process to write a list of objects contained within a project. This includes the object type, object name, type, description (if applicable), and action.
 
 Files contained in this git:
